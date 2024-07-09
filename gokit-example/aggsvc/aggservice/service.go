@@ -3,6 +3,7 @@ package aggservice
 import (
 	"context"
 	"github.com/RockPigeon5985/carbon-tax-calculator/types"
+	"github.com/go-kit/log"
 )
 
 const basePrice = 3.15
@@ -40,7 +41,7 @@ func (svc *BasicService) Calculate(ctx context.Context, obuID int) (*types.Invoi
 }
 
 // New will construct a complete microservice with logging and instrumentation middleware
-func New() Service {
+func New(logger log.Logger) Service {
 	var (
 		store Storer
 		svc   Service
@@ -48,7 +49,7 @@ func New() Service {
 	{
 		store = NewMemoryStore()
 		svc = newBasicService(store)
-		svc = newLoggingMiddleware()(svc)
+		svc = newLoggingMiddleware(logger)(svc)
 		svc = newInstrumentationMiddleware()(svc)
 	}
 	return svc

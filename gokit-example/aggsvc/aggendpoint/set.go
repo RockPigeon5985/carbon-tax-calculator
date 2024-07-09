@@ -2,11 +2,12 @@ package aggendpoint
 
 import (
 	"context"
-	"github.com/RockPigeon5985/carbon-tax-calculator/gokit-example/aggservice"
+	"github.com/RockPigeon5985/carbon-tax-calculator/gokit-example/aggsvc/aggservice"
 	"github.com/RockPigeon5985/carbon-tax-calculator/types"
 	"github.com/go-kit/kit/circuitbreaker"
 	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/metrics"
 	"github.com/go-kit/kit/ratelimit"
 	"github.com/sony/gobreaker"
 	"golang.org/x/time/rate"
@@ -39,15 +40,15 @@ type CalculateResponse struct {
 	Err           error   `json:"err"`
 }
 
-func New(svc aggservice.Service, logger log.Logger) Set {
+func New(svc aggservice.Service, duration metrics.Histogram, logger log.Logger) Set {
 	var aggregateEndpoint endpoint.Endpoint
 	{
 		aggregateEndpoint = MakeAggregateEndpoint(svc)
 
 		aggregateEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), 1))(aggregateEndpoint)
 		aggregateEndpoint = circuitbreaker.Gobreaker(gobreaker.NewCircuitBreaker(gobreaker.Settings{}))(aggregateEndpoint)
-		//aggregateEndpoint = LoggingMiddleware(log.With(logger, "method", "Sum"))(aggregateEndpoint)
-		//aggregateEndpoint = InstrumentingMiddleware(duration.With("method", "Sum"))(aggregateEndpoint)
+		aggregateEndpoint = LoggingMiddleware(log.With(logger, "method", "aggregate"))(aggregateEndpoint)
+		aggregateEndpoint = InstrumentingMiddleware(duration.With("method", "aggregate"))(aggregateEndpoint)
 	}
 
 	var calculateEndpoint endpoint.Endpoint
@@ -56,8 +57,8 @@ func New(svc aggservice.Service, logger log.Logger) Set {
 
 		calculateEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Limit(1), 100))(calculateEndpoint)
 		calculateEndpoint = circuitbreaker.Gobreaker(gobreaker.NewCircuitBreaker(gobreaker.Settings{}))(calculateEndpoint)
-		//calculateEndpoint = LoggingMiddleware(log.With(logger, "method", "Concat"))(calculateEndpoint)
-		//calculateEndpoint = InstrumentingMiddleware(duration.With("method", "Concat"))(calculateEndpoint)
+		calculateEndpoint = LoggingMiddleware(log.With(logger, "method", "invoice"))(calculateEndpoint)
+		calculateEndpoint = InstrumentingMiddleware(duration.With("method", "invoice"))(calculateEndpoint)
 	}
 	return Set{
 		AggregateEndpoint: aggregateEndpoint,
